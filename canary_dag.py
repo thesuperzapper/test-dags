@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 
-# import with try/except to support both airflow 1 and 2
+# import using try/except to support both airflow 1 and 2
 try:
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.bash import BashOperator
 except ModuleNotFoundError:
-    from airflow.operators.dummy_operator import DummyOperator
+    from airflow.operators.bash_operator import BashOperator
 
 dag = DAG(
     dag_id="canary_dag",
@@ -19,7 +19,10 @@ dag = DAG(
     catchup=False,
 )
 
-task = DummyOperator(
+# WARNING: while `DummyOperator` would use less resources, the probe can't detect those tasks
+#          as they don't create LocalTaskJob instances
+task = BashOperator(
     task_id="canary_task",
+    bash_command="echo 'Hello World!'",
     dag=dag,
 )
