@@ -19,7 +19,7 @@ dag = DAG(
     dag_id="bash_sleep_long",
     default_args=args,
     schedule_interval="0 0 * * *",
-    start_date=days_ago(2),
+    start_date=days_ago(1),
     dagrun_timeout=timedelta(minutes=60),
 )
 

@@ -15,7 +15,7 @@ try:
         dag_id="deferrable_task",
         default_args=args,
         schedule_interval="0 0 * * *",
-        start_date=days_ago(2),
+        start_date=days_ago(1),
         dagrun_timeout=timedelta(minutes=60),
     )
 
