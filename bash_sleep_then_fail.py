@@ -1,3 +1,4 @@
+import datetime
 from datetime import timedelta
 
 from airflow import DAG
@@ -25,5 +26,6 @@ run_this = BashOperator(
     task_id="sleep_then_fail",
     bash_command="sleep 15; exit 1;",
     retries=5,
+    retry_delay=datetime.timedelta(seconds=15),
     dag=dag,
 )
