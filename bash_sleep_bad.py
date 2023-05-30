@@ -28,9 +28,10 @@ dag = DAG(
 run_this = BashOperator(
     task_id="sleep_60",
     bash_command="sleep 60",
-    # bad start_date (after 9999-12-31)
-    start_date=1681228342000,
     dag=dag,
 )
+
+# bad start date (after 9999-12-31)
+run_this.start_date = 253370764800 + 365 * 24 * 60 * 60 + 1
 
 run_that = create_bash_task(dag)
