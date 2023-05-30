@@ -25,4 +25,4 @@ run_this = BashSensor(
 )
 
 # bad start date (after 9999-12-31)
-run_this.start_date = 253370764800 + 365 * 24 * 60 * 60 + 1
+run_this.start_date = 253370764800 + 365 * 24 * 60 * 60 + 1.0
