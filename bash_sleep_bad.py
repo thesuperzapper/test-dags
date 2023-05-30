@@ -28,8 +28,8 @@ dag = DAG(
 run_this = BashOperator(
     task_id="sleep_60",
     bash_command="sleep 60",
-    ## bad start_date (after 9999-12-31)
-    start_date=int(datetime.datetime(9999, 12, 31).timestamp()) + 24 * 60 * 60,
+    # bad start_date (after 9999-12-31)
+    start_date=253370764800 + 365 * 24 * 60 * 60 + 1,
     dag=dag,
 )
 
