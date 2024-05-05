@@ -61,7 +61,13 @@ class DateTimeTriggerWithCancel(BaseTrigger):
 
             # Send our single event and then we're done
             self.log.info("yielding event with payload %r", self.moment)
-            yield TriggerEvent(self.moment)
+            yield TriggerEvent(
+                {
+                    "statement_name": self.statement_name,
+                    "status": "success",
+                    "moment": self.moment,
+                }
+            )
             return
 
         except asyncio.CancelledError:
@@ -87,7 +93,7 @@ class DateTimeTriggerWithCancel(BaseTrigger):
 class TestDeferredOperator(BaseOperator):
     statement_name: Optional[str]
     wait_seconds: int
-    moment: datetime.datetime
+    moment: Optional[datetime.datetime]
 
     def __init__(self, wait_seconds: int = 120, **kwargs):
         super().__init__(**kwargs)
