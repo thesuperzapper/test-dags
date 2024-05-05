@@ -2,7 +2,7 @@ import asyncio
 import os
 from datetime import timedelta
 from time import timezone
-from typing import AsyncIterator, Any
+from typing import AsyncIterator, Any, Optional, Dict
 
 import pendulum
 from airflow import DAG
@@ -85,15 +85,15 @@ class DateTimeTriggerWithCancel(BaseTrigger):
 
 # an operator that sleeps for a given number of seconds using a deferred trigger
 class TestDeferredOperator(BaseOperator):
-    statement_name: str | None
+    statement_name: Optional[str]
     wait_seconds: int
     moment: datetime.datetime
 
     def __init__(self, wait_seconds: int = 120, **kwargs):
         super().__init__(**kwargs)
         self.wait_seconds = wait_seconds
-        self.moment = None
         self.statement_name = None
+        self.moment = None
 
     def execute(self, context: Context) -> None:
         self.statement_name = (
@@ -118,7 +118,7 @@ class TestDeferredOperator(BaseOperator):
     def execute_complete(
         self,
         context: Context,
-        event: dict[str, Any] | None = None,
+        event: Optional[Dict[str, Any]] = None,
     ) -> None:
         if event is None:
             raise AirflowException("Trigger event is None")

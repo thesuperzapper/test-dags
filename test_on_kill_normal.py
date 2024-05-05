@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+from typing import Optional
 
 import pendulum
 from airflow import DAG
@@ -11,7 +12,7 @@ from airflow.utils.dates import days_ago
 
 # define a PythonOperator extension which sets `on_kill` to write a file
 class PythonOperatorWithOnKill(PythonOperator):
-    statement_name: str | None
+    statement_name: Optional[str]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
