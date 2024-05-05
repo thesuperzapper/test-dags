@@ -27,7 +27,7 @@ class PythonOperatorWithOnKill(PythonOperator):
         super().execute(context)
 
     def on_kill(self):
-        output_folder = f"/tmp/on_kill_normal/{self.dag.dag_id}/{self.task_id}"
+        output_folder = f"/tmp/testing/on_kill_normal/{self.dag.dag_id}/{self.task_id}"
         os.makedirs(output_folder, exist_ok=True)
         with open(f"{output_folder}/log.txt", "a") as f:
             f.write(f"on_kill was called: {self.statement_name}\n")

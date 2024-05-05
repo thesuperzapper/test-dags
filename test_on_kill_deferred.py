@@ -68,7 +68,9 @@ class DateTimeTriggerWithCancel(BaseTrigger):
             self.log.info(f"asyncio.CancelledError was called")
             if self.statement_name:
                 # Cancel the query (mock by writing to a file)
-                output_folder = f"/tmp/on_kill_deferred/{self.dag_id}/{self.task_id}"
+                output_folder = (
+                    f"/tmp/testing/on_kill_deferred/{self.dag_id}/{self.task_id}"
+                )
                 os.makedirs(output_folder, exist_ok=True)
                 with open(f"{output_folder}/log_trigger.txt", "a") as f:
                     f.write(
@@ -126,7 +128,9 @@ class TestDeferredOperator(BaseOperator):
         self.log.info("%s completed successfully.", self.task_id)
 
     def on_kill(self):
-        output_folder = f"/tmp/on_kill_deferred/{self.dag.dag_id}/{self.task_id}"
+        output_folder = (
+            f"/tmp/testing/on_kill_deferred/{self.dag.dag_id}/{self.task_id}"
+        )
         os.makedirs(output_folder, exist_ok=True)
         with open(f"{output_folder}/log_operator.txt", "a") as f:
             f.write(f"on_kill was called: {self.statement_name}\n")
