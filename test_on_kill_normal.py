@@ -25,7 +25,6 @@ class PythonOperatorWithOnKill(PythonOperator):
             f"::{self.task_id}"
             f"::{pendulum.now(timezone.utc).isoformat()}"
         )
-        super().execute(context)
 
     def on_kill(self):
         output_folder = f"/tmp/testing/on_kill_normal/{self.dag.dag_id}/{self.task_id}"
