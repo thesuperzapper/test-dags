@@ -155,6 +155,7 @@ class TestDeferredOperator(BaseOperator):
                 moment=self.moment,
             ),
             method_name="execute_complete",
+            timeout=timedelta(seconds=60),
         )
 
     def execute_complete(
