@@ -1,8 +1,7 @@
 import asyncio
 import os
 from datetime import timedelta
-from time import timezone
-from typing import AsyncIterator, Any, Optional, Dict
+from typing import Any, AsyncIterator, Dict, Optional
 
 import pendulum
 from airflow import DAG
@@ -28,6 +27,7 @@ class DateTimeTriggerWithCancel(BaseTrigger):
         task_id: str,
         run_id: str,
         map_index: int,
+        job_id: int,
         statement_name: str,
         moment: datetime.datetime,
     ):
@@ -36,6 +36,7 @@ class DateTimeTriggerWithCancel(BaseTrigger):
         self.task_id = task_id
         self.run_id = run_id
         self.map_index = map_index
+        self.job_id = job_id
         self.statement_name = statement_name
 
         # set and validate the moment
@@ -49,6 +50,11 @@ class DateTimeTriggerWithCancel(BaseTrigger):
             self.moment: pendulum.DateTime = timezone.convert_to_utc(moment)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
+        #
+        # TODO: for Airflow 2.6.0+ you can get the `TaskInstance` from `self.task_instance` which removes
+        #       the need to store `dag_id`, `task_id`, `run_id`, `map_index`, and `job_id` in the trigger
+        #       serialization. However, you STILL NEED TO QUERY for the latest TaskInstance state.
+        #
         return (
             "test_on_kill_deferred.DateTimeTriggerWithCancel",
             {
@@ -56,6 +62,7 @@ class DateTimeTriggerWithCancel(BaseTrigger):
                 "task_id": self.task_id,
                 "run_id": self.run_id,
                 "map_index": self.map_index,
+                "job_id": self.job_id,
                 "statement_name": self.statement_name,
                 "moment": self.moment,
             },
@@ -63,11 +70,6 @@ class DateTimeTriggerWithCancel(BaseTrigger):
 
     @provide_session
     def get_task_instance(self, session: Session) -> TaskInstance:
-        #
-        # TODO: for Airflow 2.6.0+ you can get the `TaskInstance` from `self.task_instance`
-        #       which removes the need to store `dag_id`, `task_id`, `run_id`, and `map_index`
-        #       in the trigger serialization
-        #
         query = session.query(TaskInstance).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
@@ -89,11 +91,21 @@ class DateTimeTriggerWithCancel(BaseTrigger):
         """
         Whether it is safe to cancel the external job which is being executed by this trigger.
 
-        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
-        Because in those cases, we should NOT cancel the external job.
+        This is to avoid the case that `asyncio.CancelledError` is called because the trigger
+        itself is stopped. Because in those cases, we should NOT cancel the external job.
         """
         # Database query is needed to get the latest state of the task instance.
         task_instance = self.get_task_instance()
+
+        # If the current job_id is different from when the trigger was created,
+        # then we should cancel the external job we are waiting on because the task has been
+        # cleared and a new job has been created.
+        if int(task_instance.job_id) != int(self.job_id):
+            return True
+
+        # If the task is not in a deferred state, then something else has happened to the task
+        # since we were deferred (e.g. a manual state change), so we should cancel the external
+        # job we are waiting on.
         return task_instance.state != TaskInstanceState.DEFERRED
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
@@ -115,9 +127,11 @@ class DateTimeTriggerWithCancel(BaseTrigger):
             )
 
         except asyncio.CancelledError:
-            self.log.info(f"asyncio.CancelledError was called")
+            self.log.info("asyncio.CancelledError was called")
             if self.statement_name:
                 if self.safe_to_cancel():
+                    self.log.warning("Cancelling query: %s", self.statement_name)
+
                     # Cancel the query (mock by writing to a file)
                     output_folder = (
                         f"/tmp/testing/on_kill_deferred/{self.dag_id}/{self.task_id}"
@@ -127,10 +141,11 @@ class DateTimeTriggerWithCancel(BaseTrigger):
                         f.write(
                             f"asyncio.CancelledError was called: {self.statement_name}\n"
                         )
+                    yield TriggerEvent({"status": "cancelled"})
                 else:
                     self.log.warning("Triggerer probably stopped, not cancelling query")
             else:
-                self.log.info("self.statement_name is None")
+                self.log.error("self.statement_name is None")
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")
             yield TriggerEvent({"status": "error", "message": str(e)})
@@ -164,6 +179,7 @@ class TestDeferredOperator(BaseOperator):
                 task_id=self.task_id,
                 run_id=context["run_id"],
                 map_index=context["task_instance"].map_index,
+                job_id=context["task_instance"].job_id,
                 statement_name=self.statement_name,
                 moment=self.moment,
             ),
@@ -177,9 +193,15 @@ class TestDeferredOperator(BaseOperator):
     ) -> None:
         if event is None:
             raise AirflowException("Trigger event is None")
+
         if event["status"] == "error":
             msg = f"context: {context}, error message: {event['message']}"
             raise AirflowException(msg)
+
+        if event["status"] == "cancelled":
+            self.log.info(f"external job was cancelled: {self.statement_name}")
+            return
+
         self.log.info("%s completed successfully.", self.task_id)
 
     def on_kill(self):
@@ -201,5 +223,5 @@ with DAG(
     # task 1
     task_1 = TestDeferredOperator(
         task_id="task_1",
-        wait_seconds=120,
+        wait_seconds=60,
     )
