@@ -9,8 +9,6 @@ try:
 except ModuleNotFoundError:
     from airflow.operators.bash_operator import BashOperator
 
-from test_package.functions import create_bash_task
-
 args = {
     "owner": "airflow",
 }
@@ -28,5 +26,3 @@ run_this = BashOperator(
     bash_command="sleep 60",
     dag=dag,
 )
-
-run_that = create_bash_task(dag)
